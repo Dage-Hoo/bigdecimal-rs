@@ -760,6 +760,121 @@ impl BigDecimal {
         return result;
     }
 
+    pub fn powd(&self, exp: Self) -> Self {
+        if exp.is_zero() {
+            return Self::one();
+        }
+        if self.is_zero() {
+            return Self::zero();
+        }
+        if self.is_one() {
+            return Self::one();
+        }
+        if exp.is_one() {
+            return (*self).clone();
+        }
+
+        let exp = exp.normalized();
+        if exp.is_integer() && exp < Self::from_u32(u32::MAX).unwrap() && exp > Self::from_u32(u32::MIN).unwrap() {
+            return if exp.is_negative() {
+                self.powi(exp.to_i64().unwrap())
+            } else {
+                self.powu(exp.to_u64().unwrap())
+            };
+        }
+
+        let negative = self.is_negative();
+        let e = self.abs().ln() * exp;
+        let result = e.exp();
+        if negative {
+            result.neg()
+        } else {
+            result
+        }
+
+    }
+
+    pub fn powi(&self, exp: i64) -> Self {
+        if exp >= 0 {
+            return self.powu(exp as u64);
+        }
+        let exp = exp.unsigned_abs();
+        let pow = self.powu(exp);
+        Self::one() / pow
+    }
+
+    pub fn powu(&self, exp: u64) -> Self {
+        match exp {
+            0 => Self::one(),
+            1 => (*self).clone(),
+            2 => self.square(),
+            3 => self.cube(),
+            _ => {
+                let squared = (*self).clone() * (*self).clone();
+                let iter = core::iter::repeat(squared);
+
+                let mut product = Self::one();
+                for x in iter.take((exp >> 1) as usize) {
+                    product *= x;
+                }
+                if exp & 0x1 > 0 {
+                    product *= (*self).clone();
+                }
+                product.normalized()
+            }
+        }
+    }
+
+    #[inline]
+    pub fn ln(&self) -> Self {
+        match self.checked_ln() {
+            Some(result) => result,
+            None => {
+                if self.is_negative() {
+                    panic!("Unable to calculate ln for negative numbers")
+                } else if self.is_zero() {
+                    panic!("Unable to calculate ln for zero")
+                } else {
+                    panic!("Unable to calculate ln for unknown reasons")
+                }
+            }
+        }
+    }
+
+    pub fn checked_ln(&self) -> Option<Self> {
+        if self.is_negative() || self.is_zero() {
+            return None;
+        }
+        if self.is_one() {
+            return Some(Self::zero());
+        }
+        let mut x = (*self).clone();
+        let mut count = 0;
+        while x >= Self::one() {
+            x *= Self::one().exp().inverse();
+            count += 1;
+        }
+        while x <=Self::one().exp().inverse(){
+            x *= Self::one().exp();
+            count -= 1;
+        }
+        x -= Self::one();
+        if x.is_zero() {
+            return Self::from_i32(count);
+        }
+        let mut result = Self::zero();
+        let mut iteration = 0;
+        let mut y = Self::one();
+        let mut last = Self::one();
+        while last != result.clone() && iteration < 100 {
+            iteration += 1;
+            last = result.clone();
+            y *= -x.clone();
+            result += y.clone() / Self::from_i32(iteration)?
+        }
+        Some(Self::from_i32(count)? - result)
+    }
+
     /// Compute the reciprical of the number: x<sup>-1</sup>
     #[inline]
     pub fn inverse(&self) -> BigDecimal {
