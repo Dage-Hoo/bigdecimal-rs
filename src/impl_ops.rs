@@ -1,19 +1,11 @@
 //! Implement math operations: Add,Sub, etc
 
+use crate::stdlib::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use crate::BigDecimal;
-use crate::stdlib::ops::{
-    Add, AddAssign,
-    Sub, SubAssign,
-    Mul, MulAssign,
-    Div, DivAssign,
-    Neg,
-};
-
 
 use crate::stdlib::convert::TryFrom;
 
-use num_traits::{Zero, One};
-
+use num_traits::{One, Zero};
 
 macro_rules! impl_add_for_primitive {
     ($t:ty) => {
@@ -90,7 +82,6 @@ impl_add_for_primitive!(i32);
 impl_add_for_primitive!(i64);
 impl_add_for_primitive!(i128);
 
-
 macro_rules! impl_sub_for_primitive {
     ($t:ty) => {
         impl_sub_for_primitive!(IMPL:SUB $t);
@@ -153,7 +144,6 @@ macro_rules! impl_sub_for_primitive {
     };
 }
 
-
 impl_sub_for_primitive!(u8);
 impl_sub_for_primitive!(u16);
 impl_sub_for_primitive!(u32);
@@ -164,7 +154,6 @@ impl_sub_for_primitive!(i16);
 impl_sub_for_primitive!(i32);
 impl_sub_for_primitive!(i64);
 impl_sub_for_primitive!(i128);
-
 
 macro_rules! impl_mul_for_primitive {
     ($t:ty) => {
@@ -222,7 +211,6 @@ macro_rules! impl_mul_for_primitive {
         }
     };
 }
-
 
 impl_mul_for_primitive!(u8);
 impl_mul_for_primitive!(u16);
@@ -424,7 +412,6 @@ macro_rules! impl_div_for_primitive {
         }
     };
 }
-
 
 impl_div_for_primitive!(u8);
 impl_div_for_primitive!(u16);

@@ -47,10 +47,9 @@
 #![allow(clippy::suspicious_op_assign_impl)]
 #![allow(clippy::redundant_field_names)]
 
-
 pub extern crate num_bigint;
-pub extern crate num_traits;
 extern crate num_integer;
+pub extern crate num_traits;
 
 #[cfg(feature = "serde")]
 extern crate serde;
@@ -65,13 +64,13 @@ include!("./without_std.rs");
 use self::stdlib::cmp::{self, Ordering};
 use self::stdlib::convert::TryFrom;
 use self::stdlib::default::Default;
+use self::stdlib::fmt;
 use self::stdlib::hash::{Hash, Hasher};
+use self::stdlib::iter::{self, Sum};
 use self::stdlib::num::{ParseFloatError, ParseIntError};
 use self::stdlib::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
-use self::stdlib::iter::{self, Sum};
 use self::stdlib::str::FromStr;
 use self::stdlib::string::{String, ToString};
-use self::stdlib::fmt;
 
 use num_bigint::{BigInt, ParseBigIntError, Sign};
 use num_integer::Integer as IntegerTrait;
@@ -79,7 +78,6 @@ pub use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 
 #[allow(clippy::approx_constant)] // requires Rust 1.43.0
 const LOG2_10: f64 = 3.321928094887362_f64;
-
 
 // const DEFAULT_PRECISION: u64 = ${RUST_BIGDECIMAL_DEFAULT_PRECISION} or 100;
 include!(concat!(env!("OUT_DIR"), "/default_precision.rs"));
@@ -147,7 +145,6 @@ fn ten_to_the(pow: u64) -> BigInt {
     }
 }
 
-
 #[inline(always)]
 fn count_decimal_digits(int: &BigInt) -> u64 {
     if int.is_zero() {
@@ -156,7 +153,9 @@ fn count_decimal_digits(int: &BigInt) -> u64 {
     let uint = int.magnitude();
     let mut digits = (uint.bits() as f64 / LOG2_10) as u64;
     // guess number of digits based on number of bits in UInt
-    let mut num = ten_to_the(digits).to_biguint().expect("Ten to power is negative");
+    let mut num = ten_to_the(digits)
+        .to_biguint()
+        .expect("Ten to power is negative");
     while *uint >= num {
         num *= 10u8;
         digits += 1;
@@ -245,8 +244,8 @@ impl BigDecimal {
     #[inline]
     pub fn parse_bytes(buf: &[u8], radix: u32) -> Option<BigDecimal> {
         stdlib::str::from_utf8(buf)
-                    .ok()
-                    .and_then(|s| BigDecimal::from_str_radix(s, radix).ok())
+            .ok()
+            .and_then(|s| BigDecimal::from_str_radix(s, radix).ok())
     }
 
     /// Return a new BigDecimal object equivalent to self, with internal
@@ -294,9 +293,7 @@ impl BigDecimal {
         }
 
         match new_scale.cmp(&self.scale) {
-            Ordering::Equal => {
-                self.clone()
-            }
+            Ordering::Equal => self.clone(),
             Ordering::Greater => {
                 // increase number of zeros
                 let scale_diff = new_scale - self.scale;
@@ -326,8 +323,9 @@ impl BigDecimal {
 
                         let low_digit = digits[scale_diff - 1];
                         let high_digit = digits[scale_diff];
-                        let trailing_zeros = digits[0..scale_diff-1].iter().all(Zero::is_zero);
-                        let rounded_digit = mode.round_pair(sign, (high_digit, low_digit), trailing_zeros);
+                        let trailing_zeros = digits[0..scale_diff - 1].iter().all(Zero::is_zero);
+                        let rounded_digit =
+                            mode.round_pair(sign, (high_digit, low_digit), trailing_zeros);
 
                         debug_assert!(rounded_digit <= 10);
 
@@ -640,7 +638,8 @@ impl BigDecimal {
                 BigDecimal::try_from(res).unwrap()
             } else {
                 // can't guess with float - just guess magnitude
-                let scale = (self.int_val.bits() as f64 / -LOG2_10 + self.scale as f64).round() as i64;
+                let scale =
+                    (self.int_val.bits() as f64 / -LOG2_10 + self.scale as f64).round() as i64;
                 BigDecimal::new(BigInt::from(1), scale / 2)
             }
         };
@@ -713,7 +712,8 @@ impl BigDecimal {
                 BigDecimal::try_from(res).unwrap()
             } else {
                 // can't guess with float - just guess magnitude
-                let scale = (self.int_val.bits() as f64 / LOG2_10 - self.scale as f64).round() as i64;
+                let scale =
+                    (self.int_val.bits() as f64 / LOG2_10 - self.scale as f64).round() as i64;
                 BigDecimal::new(BigInt::from(1), -scale / 3)
             }
         };
@@ -732,7 +732,12 @@ impl BigDecimal {
                 max_precision + 1,
             );
             let tmp = tmp + r.double();
-            impl_division(tmp.int_val, &three.int_val, tmp.scale - three.scale, max_precision + 1)
+            impl_division(
+                tmp.int_val,
+                &three.int_val,
+                tmp.scale - three.scale,
+                max_precision + 1,
+            )
         };
 
         // result initial
@@ -775,7 +780,10 @@ impl BigDecimal {
         }
 
         let exp = exp.normalized();
-        if exp.is_integer() && exp < Self::from_u32(u32::MAX).unwrap() && exp > Self::from_u32(u32::MIN).unwrap() {
+        if exp.is_integer()
+            && exp < Self::from_u32(u32::MAX).unwrap()
+            && exp > Self::from_u32(u32::MIN).unwrap()
+        {
             return if exp.is_negative() {
                 self.powi(exp.to_i64().unwrap())
             } else {
@@ -791,7 +799,6 @@ impl BigDecimal {
         } else {
             result
         }
-
     }
 
     pub fn powi(&self, exp: i64) -> Self {
@@ -854,7 +861,7 @@ impl BigDecimal {
             x *= Self::one().exp().inverse();
             count += 1;
         }
-        while x <=Self::one().exp().inverse(){
+        while x <= Self::one().exp().inverse() {
             x *= Self::one().exp();
             count -= 1;
         }
@@ -866,7 +873,7 @@ impl BigDecimal {
         let mut iteration = 0;
         let mut y = Self::one();
         let mut last = Self::one();
-        while last != result.clone() && iteration < 100 {
+        while last != result.clone() && iteration < 300 {
             iteration += 1;
             last = result.clone();
             y *= -x.clone();
@@ -981,7 +988,8 @@ impl BigDecimal {
         let double_digits_to_remove = self.scale - round_digits;
         debug_assert!(double_digits_to_remove > 0);
 
-        let (rounding_idx, rounding_offset) = num_integer::div_rem(double_digits_to_remove as usize, 2);
+        let (rounding_idx, rounding_offset) =
+            num_integer::div_rem(double_digits_to_remove as usize, 2);
         debug_assert!(rounding_idx <= double_digits.len());
 
         let (low_digits, high_digits) = double_digits.as_slice().split_at(rounding_idx);
@@ -1023,7 +1031,7 @@ impl BigDecimal {
             rounded_uint = unrounded_uint + rounding;
         }
 
-        let rounded_int = num_bigint::BigInt::from_biguint(sign,  rounded_uint);
+        let rounded_int = num_bigint::BigInt::from_biguint(sign, rounded_uint);
         BigDecimal::new(rounded_int, round_digits)
     }
 
@@ -1060,7 +1068,12 @@ impl BigDecimal {
             term *= self;
             factorial *= n;
             // ∑ term=x^n/n!
-            result += impl_division(term.int_val.clone(), &factorial, term.scale, 117 + precision);
+            result += impl_division(
+                term.int_val.clone(),
+                &factorial,
+                term.scale,
+                117 + precision,
+            );
 
             let trimmed_result = result.with_prec(target_precision + 5);
             if prev_result == trimmed_result {
@@ -1069,6 +1082,48 @@ impl BigDecimal {
             prev_result = trimmed_result;
         }
         unreachable!("Loop did not converge")
+    }
+
+    pub fn e() -> Self {
+        Self::exp(&Self::one())
+    }
+
+    pub fn pi() -> Self {
+        let mut result = Self::zero();
+        let mut count = Self::zero();
+        let factor = Self::from_i32(2).unwrap() * Self::from_i32(2).unwrap().sqrt().unwrap()
+            / Self::from_i32(99).unwrap().square();
+        while count.clone() < (Self::one() * 10) {
+            result += (Self::one() * 26390 * count.clone() + Self::one() * 1103)
+                * (count.clone() * Self::one() * Self::from_i32(4).unwrap()).factorial()
+                / count.factorial();
+            count += Self::one();
+        }
+        result = result * factor;
+        result.inverse()
+    }
+
+    pub fn factorial(&self) -> Self {
+        match self.checked_factorial() {
+            Some(x) => x,
+            None => panic!("factorial can't be used on negative or float"),
+        }
+    }
+
+    pub fn checked_factorial(&self) -> Option<BigDecimal> {
+        if self.is_integer() && self >= &Self::zero() {
+            if self.is_zero() {
+                return Some(Self::one());
+            }
+            let mut result = Self::one();
+            let mut count = Self::one();
+            while &count <= self {
+                result = result * count.clone();
+                count += Self::one();
+            }
+            return Some(result);
+        }
+        None
     }
 
     #[must_use]
@@ -1255,10 +1310,15 @@ impl PartialEq for BigDecimal {
         }
 
         // add leading zero digits to digits that need scaled
-        let scaled = iter::repeat(&0u8).take(trailing_zero_count).chain(scaled_digits.iter());
+        let scaled = iter::repeat(&0u8)
+            .take(trailing_zero_count)
+            .chain(scaled_digits.iter());
 
         // return true if all digits are the same
-        unscaled_digits.iter().zip(scaled).all(|(digit_a, digit_b)| { digit_a == digit_b })
+        unscaled_digits
+            .iter()
+            .zip(scaled)
+            .all(|(digit_a, digit_b)| digit_a == digit_b)
     }
 }
 
@@ -1287,7 +1347,6 @@ impl One for BigDecimal {
         BigDecimal::new(BigInt::one(), 0)
     }
 }
-
 
 impl Add<BigDecimal> for BigDecimal {
     type Output = BigDecimal;
@@ -1609,7 +1668,9 @@ impl<'a> SubAssign<&'a BigInt> for BigDecimal {
     fn sub_assign(&mut self, rhs: &BigInt) {
         match self.scale.cmp(&0) {
             Ordering::Equal => SubAssign::sub_assign(&mut self.int_val, rhs),
-            Ordering::Greater => SubAssign::sub_assign(&mut self.int_val, rhs * ten_to_the(self.scale as u64)),
+            Ordering::Greater => {
+                SubAssign::sub_assign(&mut self.int_val, rhs * ten_to_the(self.scale as u64))
+            }
             Ordering::Less => {
                 self.int_val *= ten_to_the((-self.scale) as u64);
                 SubAssign::sub_assign(&mut self.int_val, rhs);
@@ -1822,7 +1883,6 @@ impl MulAssign<BigInt> for BigDecimal {
         *self *= &rhs
     }
 }
-
 
 #[inline(always)]
 fn impl_division(mut num: BigInt, den: &BigInt, mut scale: i64, max_precision: u64) -> BigDecimal {
@@ -2173,7 +2233,6 @@ impl fmt::Debug for BigDecimal {
     }
 }
 
-
 /// Tools to help serializing/deserializing `BigDecimal`s
 #[cfg(feature = "serde")]
 mod bigdecimal_serde {
@@ -2309,7 +2368,8 @@ mod bigdecimal_serde {
         let vals = vec![0, 1, 81516161, -370, -8, -99999999999];
         for n in vals {
             let expected = BigDecimal::from_i64(n).unwrap();
-            let value: BigDecimal = serde_json::from_str(&serde_json::to_string(&n).unwrap()).unwrap();
+            let value: BigDecimal =
+                serde_json::from_str(&serde_json::to_string(&n).unwrap()).unwrap();
             assert_eq!(expected, value);
         }
     }
@@ -2332,7 +2392,8 @@ mod bigdecimal_serde {
         ];
         for n in vals {
             let expected = BigDecimal::from_f64(n).unwrap();
-            let value: BigDecimal = serde_json::from_str(&serde_json::to_string(&n).unwrap()).unwrap();
+            let value: BigDecimal =
+                serde_json::from_str(&serde_json::to_string(&n).unwrap()).unwrap();
             assert_eq!(expected, value);
         }
     }
@@ -3417,7 +3478,6 @@ mod bigdecimal_tests {
         assert_eq!(value, expected);
     }
 }
-
 
 #[cfg(test)]
 #[allow(non_snake_case)]
